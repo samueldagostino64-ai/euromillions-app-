@@ -80,8 +80,11 @@ def parse_csv(text: str) -> list[dict]:
     return out
 
 
-def parse_zip(blob: bytes) -> list[dict]:
+def parse_zip(blob: bytes, diag: list) -> list[dict]:
     draws = []
+    if not blob.startswith(b"PK"):
+        diag.append("pas un zip : " + blob[:200].decode("utf-8", "replace"))
+        return draws
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         for name in z.namelist():
             if not name.lower().endswith(".csv"):
@@ -93,7 +96,10 @@ def parse_zip(blob: bytes) -> list[dict]:
                     break
                 except UnicodeDecodeError:
                     continue
-            draws.extend(parse_csv(text))
+            rows = parse_csv(text)
+            if not rows:
+                diag.append(f"{name} : 0 ligne lue, entête = " + " | ".join(text.splitlines()[:2])[:600])
+            draws.extend(rows)
     return draws
 
 
@@ -104,14 +110,18 @@ def main() -> int:
             by_date[dr["d"]] = dr
     before = len(by_date)
     ok = 0
+    report = {}
     for doc_id in discover_ids():
+        diag = []
         try:
-            draws = parse_zip(fetch(DOC_BASE + doc_id))
+            draws = parse_zip(fetch(DOC_BASE + doc_id), diag)
             ok += 1
+            report[doc_id] = {"tirages": len(draws), "diag": diag}
             print(f"{doc_id}: {len(draws)} tirages")
             for dr in draws:
                 by_date[dr["d"]] = dr
         except Exception as e:
+            report[doc_id] = {"erreur": str(e)}
             print(f"[warn] {doc_id}: {e}", file=sys.stderr)
     if ok == 0:
         print("Aucune archive téléchargée", file=sys.stderr)
@@ -123,6 +133,7 @@ def main() -> int:
         "count": len(draws),
         "first": draws[0]["d"],
         "last": draws[-1]["d"],
+        "archives": report,
         "draws": draws,
     }
     OUT_JSON.parent.mkdir(exist_ok=True)
