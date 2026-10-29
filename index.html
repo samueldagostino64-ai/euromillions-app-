@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EuroMillions Stratège</title>
+<meta name="description" content="Historique, statistiques, grilles anti-partage, recouvrement, coûts et budget EuroMillions.">
+<link rel="stylesheet" href="app/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">EuroMillions <span>Stratège</span></div>
+  <div id="budget-pill" class="pill"></div>
+</header>
+<nav class="tabs" role="tablist">
+  <button data-tab="semaine" class="on">Grilles de la semaine</button>
+  <button data-tab="stats">Statistiques</button>
+  <button data-tab="generateur">Générateur</button>
+  <button data-tab="recouvrement">Recouvrement</button>
+  <button data-tab="couts">Coûts &amp; formules</button>
+  <button data-tab="budget">Budget</button>
+  <button data-tab="historique">Historique</button>
+</nav>
+<main>
+  <div id="loading" class="card">Chargement de l'historique…</div>
+
+  <!-- GRILLES DE LA SEMAINE -->
+  <section id="semaine" class="tab on" hidden>
+    <div class="card honest">
+      <strong>La règle du jeu, sans langue de bois.</strong> Chaque combinaison a exactement 1 chance sur 139 838 160 de décrocher le jackpot, quels que soient les numéros, les statistiques ou l'historique. Aucune méthode ne change ça. Ce que l'appli optimise vraiment : <b>éviter les combinaisons que tout le monde joue</b> (pour ne pas partager le gain), <b>étaler tes grilles</b> (pour gagner plus souvent un petit rang) et <b>garantir des rangs</b> via le recouvrement. Et ton budget reste sous contrôle.
+    </div>
+    <div class="card">
+      <div class="row wrap">
+        <h2 id="week-title">Grilles de la semaine</h2>
+        <span class="muted" id="week-sub"></span>
+      </div>
+      <p class="muted">Formules calculées pour ton budget hebdo (onglet Budget). Les mêmes grilles sont envoyées par le message hebdomadaire.</p>
+      <div id="plans"></div>
+    </div>
+  </section>
+
+  <!-- STATISTIQUES -->
+  <section id="stats" class="tab" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="card honest" id="chi2"></div>
+    <div class="card">
+      <div class="row wrap"><h2>Fréquence des numéros</h2>
+        <div class="seg" id="freq-mode"><button data-v="all" class="on">Depuis 2004</button><button data-v="recent">100 derniers tirages</button><button data-v="gap">Retard actuel</button></div>
+      </div>
+      <div id="chart-num" class="chart"></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Étoiles <small class="muted">(depuis le passage à 12 étoiles, sept. 2016)</small></h2><div id="chart-star" class="chart"></div></div>
+      <div class="card"><h2>Somme des 5 numéros</h2><div id="chart-sum" class="chart"></div><p class="muted" id="sum-note"></p></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Paires les plus sorties</h2><div id="pairs"></div></div>
+      <div class="card"><h2>Profils des tirages</h2><div id="profiles"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>Numéros les plus en retard</h2><div id="late"></div></div>
+      <div class="card"><h2>Numéros les plus chauds (100 derniers)</h2><div id="hot"></div></div>
+    </div>
+  </section>
+
+  <!-- GENERATEUR -->
+  <section id="generateur" class="tab" hidden>
+    <div class="card">
+      <h2>Générateur de grilles anti-partage</h2>
+      <div class="form">
+        <label>Nombre de grilles <input type="number" id="g-count" min="1" max="50" value="5"></label>
+        <label>Pondération
+          <select id="g-mode">
+            <option value="mix">Mix chauds + retards</option>
+            <option value="chauds">Numéros chauds</option>
+            <option value="retard">Numéros en retard</option>
+            <option value="neutre">Neutre (pur hasard)</option>
+          </select></label>
+        <label>Popularité max <input type="range" id="g-pop" min="0" max="40" value="15"> <output id="g-pop-v">15</output></label>
+        <label class="check"><input type="checkbox" id="g-ep"> Étoile+</label>
+        <label>Tirages / semaine <select id="g-dpw"><option value="1">1 (mardi ou vendredi)</option><option value="2" selected>2 (mardi + vendredi)</option></select></label>
+      </div>
+      <p class="muted">La pondération est une préférence, pas un avantage : un numéro « chaud » ou « en retard » a exactement la même chance que les autres au prochain tirage.</p>
+      <div class="row"><button class="primary" id="g-run">Générer</button><button id="g-reroll">Autres grilles</button><button id="g-log">Ajouter au journal de dépenses</button></div>
+      <div id="g-out"></div>
+    </div>
+    <div class="card">
+      <h2>Analyser ma propre grille</h2>
+      <div class="form">
+        <label>5 numéros <input id="a-nums" placeholder="ex. 7 14 23 38 45"></label>
+        <label>2 étoiles <input id="a-stars" placeholder="ex. 3 9"></label>
+        <button id="a-run">Analyser</button>
+      </div>
+      <div id="a-out"></div>
+    </div>
+  </section>
+
+  <!-- RECOUVREMENT -->
+  <section id="recouvrement" class="tab" hidden>
+    <div class="card">
+      <h2>Système de recouvrement (wheeling)</h2>
+      <p class="muted">Tu choisis plus de 5 numéros. L'appli construit le minimum de grilles qui <b>garantit</b> un résultat si assez de numéros tirés tombent dans ta sélection. C'est le seul vrai « système » qui existe au loto : il ne change pas la probabilité par grille, il organise tes grilles pour qu'aucune situation favorable ne t'échappe.</p>
+      <h3>Numéros <small class="muted" id="w-count"></small></h3>
+      <div class="board" id="w-board"></div>
+      <h3>Étoiles <small class="muted">(2 à 4, les paires tournent sur les grilles)</small></h3>
+      <div class="board stars" id="w-sboard"></div>
+      <div class="form">
+        <label>Garantie <select id="w-type"></select></label>
+        <label class="check"><input type="checkbox" id="w-ep"> Étoile+</label>
+        <label>Tirages / semaine <select id="w-dpw"><option value="1">1</option><option value="2" selected>2</option></select></label>
+      </div>
+      <div class="row"><button id="w-auto">Sélection auto (10 numéros)</button><button id="w-clear">Effacer</button><button class="primary" id="w-run">Calculer le système</button></div>
+      <div id="w-out"></div>
+    </div>
+  </section>
+
+  <!-- COUTS -->
+  <section id="couts" class="tab" hidden>
+    <div class="card">
+      <h2>Calculateur de coût</h2>
+      <div class="form">
+        <label>Grilles simples <input type="number" id="c-simple" min="0" max="100" value="2"></label>
+        <label>Grille multiple <select id="c-mult"><option value="">Aucune</option></select></label>
+        <label class="check"><input type="checkbox" id="c-ep"> Étoile+ (+1 €/combinaison)</label>
+        <label>Tirages / semaine <select id="c-dpw"><option value="1">1</option><option value="2" selected>2</option></select></label>
+        <label>Semaines <input type="number" id="c-weeks" min="1" max="52" value="4"></label>
+      </div>
+      <div id="c-out"></div>
+    </div>
+    <div class="card">
+      <h2>Comparer les formules pour un budget</h2>
+      <div class="form">
+        <label>Budget par semaine (€) <input type="number" id="p-budget" min="2.5" step="0.5" value="10"></label>
+        <label>Tirages / semaine <select id="p-dpw"><option value="1">1</option><option value="2" selected>2</option></select></label>
+        <button class="primary" id="p-run">Comparer</button>
+      </div>
+      <div id="p-out"></div>
+    </div>
+    <div class="card">
+      <h2>Tarifs des grilles multiples (par tirage)</h2>
+      <p class="muted">Règlement FDJ : 2,50 € par combinaison simple (My Million inclus), Étoile+ 1 € par combinaison. Les cases vides ne sont pas autorisées.</p>
+      <div class="scroll" id="mult-table"></div>
+    </div>
+    <div class="card">
+      <h2>Rangs et probabilités</h2>
+      <div class="scroll" id="ranks-table"></div>
+    </div>
+  </section>
+
+  <!-- BUDGET -->
+  <section id="budget" class="tab" hidden>
+    <div class="card">
+      <h2>Mon cadre de jeu</h2>
+      <div class="form">
+        <label>Budget hebdo (€) <input type="number" id="b-week" min="0" step="0.5"></label>
+        <label>Plafond mensuel (€) <input type="number" id="b-month" min="0" step="1"></label>
+        <label>Tirages / semaine <select id="b-dpw"><option value="1">1</option><option value="2">2</option></select></label>
+        <label>Stratégie <select id="b-mode"><option value="mix">Mix</option><option value="chauds">Chauds</option><option value="retard">Retards</option><option value="neutre">Neutre</option></select></label>
+        <label>Pause jusqu'au <input type="date" id="b-pause"></label>
+        <button class="primary" id="b-save">Enregistrer</button>
+      </div>
+      <p class="muted">Ces réglages restent dans ton navigateur. Pour que le message hebdo suive le même budget, mets la même valeur dans <code>config.json</code> du dépôt.</p>
+    </div>
+    <div class="kpis" id="b-kpis"></div>
+    <div class="card">
+      <h2>Journal mises / gains</h2>
+      <div class="form">
+        <label>Date <input type="date" id="j-date"></label>
+        <label>Mise (€) <input type="number" id="j-stake" min="0" step="0.5"></label>
+        <label>Gain (€) <input type="number" id="j-win" min="0" step="0.1" value="0"></label>
+        <label>Note <input id="j-note" placeholder="facultatif"></label>
+        <button class="primary" id="j-add">Ajouter</button>
+      </div>
+      <div class="scroll" id="j-table"></div>
+      <div class="row"><button id="j-export">Exporter (CSV)</button></div>
+    </div>
+    <div class="card honest">
+      Le jeu doit rester un jeu. Si tu dépasses ton cadre deux semaines de suite, l'appli te le dira cash. Besoin d'en parler : <a href="https://www.joueurs-info-service.fr" target="_blank" rel="noopener">Joueurs Info Service</a>, 09 74 75 13 13 (appel non surtaxé).
+    </div>
+  </section>
+
+  <!-- HISTORIQUE -->
+  <section id="historique" class="tab" hidden>
+    <div class="card">
+      <div class="row wrap"><h2>Tous les tirages</h2><a class="btn" href="data/draws.csv" download>Télécharger le CSV</a></div>
+      <div class="form">
+        <label>Filtrer par numéro(s) <input id="h-filter" placeholder="ex. 7 23"></label>
+        <label>Année <select id="h-year"><option value="">Toutes</option></select></label>
+      </div>
+      <p class="muted" id="h-count"></p>
+      <div class="scroll" id="h-table"></div>
+      <div class="row"><button id="h-more">Afficher plus</button></div>
+    </div>
+  </section>
+</main>
+<footer class="muted" id="foot"></footer>
+<div id="tip" class="tip" hidden></div>
+<script type="module" src="app/app.js"></script>
+</body>
+</html>

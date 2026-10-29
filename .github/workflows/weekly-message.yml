@@ -1,0 +1,21 @@
+name: Message hebdomadaire
+
+on:
+  schedule:
+    # Lundi 11:00 UTC = 8h en Guyane, 12h/13h à Paris
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Envoyer les grilles de la semaine
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/weekly.mjs
