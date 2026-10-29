@@ -1,5 +1,5 @@
-// Message hebdomadaire : grilles de la semaine + coût + rappel budget, envoyé sur Telegram.
-// Secrets attendus : TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. Sans eux, le message est seulement affiché.
+// Message hebdomadaire : grilles de la semaine + coût + rappel budget.
+// Le workflow le publie en issue GitHub assignée au propriétaire : GitHub l'envoie par e-mail.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,31 +18,22 @@ const last = draws[draws.length - 1];
 const plans = E.proposePlans({ budgetWeek, drawsPerWeek: dpw, stats, draws, mode: cfg.strategie ?? "mix", seed: E.hashSeed(wk) });
 const best = plans[0];
 const lines = [
-  `<b>EuroMillions · semaine ${wk.split("-W")[1]}</b>`,
-  `Dernier tirage (${last.d}) : ${last.n.join(" ")} ★ ${last.s.join(" ")}`,
+  `**Dernier tirage (${last.d}) :** ${last.n.join(" ")} ★ ${last.s.join(" ")}`,
   "",
-  `<b>Formule recommandée :</b> ${best.title}`,
-  `<pre>${best.grids.map(fmt).join("\n")}</pre>`,
-  `Coût : ${eur(best.cost.perDraw)}/tirage, ${eur(best.cost.perWeek)} pour ${dpw === 2 ? "mardi + vendredi" : "1 tirage"} (budget ${eur(budgetWeek)}).`,
+  `### Formule recommandée : ${best.title}`,
+  "```",
+  ...best.grids.map(fmt),
+  "```",
+  `Coût : **${eur(best.cost.perDraw)}**/tirage, **${eur(best.cost.perWeek)}** pour ${dpw === 2 ? "mardi + vendredi" : "1 tirage"} (budget ${eur(budgetWeek)}).`,
   `Au moins un gain : ${(best.sim.pAnyEP * 100).toFixed(1)} % par tirage. Jackpot : 1 sur ${Math.round(1 / best.pJackpot).toLocaleString("fr-FR")}.`,
 ];
-const others = plans.slice(1).map(p => `• ${p.title} : ${eur(p.cost.perWeek)}/sem., ≥1 gain ${(p.sim.pAnyEP * 100).toFixed(1)} %`);
-if (others.length) lines.push("", "<b>Autres formules au même budget :</b>", ...others);
+const others = plans.slice(1).map(p => `- ${p.title} : ${eur(p.cost.perWeek)}/sem., au moins un gain ${(p.sim.pAnyEP * 100).toFixed(1)} %`);
+if (others.length) lines.push("", "**Autres formules au même budget :**", ...others);
 lines.push("", `Plafond du mois : ${eur(cfg.plafond_mensuel ?? budgetWeek * 4.5)}. Pas un euro de plus. Le jackpot ne se « rattrape » pas.`);
-if (cfg.url_appli) lines.push(`<a href="${cfg.url_appli}">Ouvrir l'appli</a>`);
-const text = lines.join("\n");
+if (cfg.url_appli) lines.push("", `[Ouvrir l'appli](${cfg.url_appli})`);
+if (process.env.NOTIFY) lines.push("", `@${process.env.NOTIFY}`);
 
-const token = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
-if (!token || !chat) {
-  console.log(text);
-  console.log("\n[info] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID absents : message non envoyé.");
-} else {
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true }),
-  });
-  const body = await r.json();
-  if (!body.ok) { console.error(body); process.exit(1); }
-  console.log("Message envoyé.");
-}
+// Sortie : titre puis corps Markdown, repris par le workflow pour créer l'issue (GitHub envoie l'e-mail).
+fs.writeFileSync(path.join(root, "weekly-title.txt"), `Grilles EuroMillions · semaine ${wk.split("-W")[1]}`);
+fs.writeFileSync(path.join(root, "weekly-body.md"), lines.join("\n"));
+console.log(lines.join("\n"));

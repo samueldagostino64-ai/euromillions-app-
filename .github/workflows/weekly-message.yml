@@ -6,6 +6,10 @@ on:
     - cron: "0 11 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   send:
     runs-on: ubuntu-latest
@@ -14,8 +18,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Envoyer les grilles de la semaine
+      - name: Préparer les grilles de la semaine
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFY: ${{ github.repository_owner }}
         run: node scripts/weekly.mjs
+      - name: Publier (GitHub envoie l'e-mail)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create grilles --color 2a78d6 --description "Grilles hebdomadaires" 2>/dev/null || true
+          for n in $(gh issue list --label grilles --state open --json number -q '.[].number'); do gh issue close "$n"; done
+          gh issue create --title "$(cat weekly-title.txt)" --body-file weekly-body.md --label grilles --assignee "${{ github.repository_owner }}"
