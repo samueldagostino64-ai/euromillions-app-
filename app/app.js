@@ -47,7 +47,7 @@ function bars(el, values, labels, { alt = false, highlight = null, fmt = v => v 
     const r = Math.min(4, w / 2);
     const isHi = highlight && highlight.includes(i);
     s += `<path class="bar${alt || isHi ? " alt" : ""}" data-tip="${labels[i]} : ${fmt(v)}" d="M${x},${H}V${y + r}a${r},${r} 0 0 1 ${r},-${r}h${w - 2 * r}a${r},${r} 0 0 1 ${r},${r}V${H}Z"/>`;
-    if (bw >= 14 || i % 2 === 0) s += `<text x="${x + w / 2}" y="${H + 14}" text-anchor="middle">${labels[i]}</text>`;
+    if (bw >= 14 || (bw >= 9 ? i % 2 === 0 : (i + 1) % 5 === 0 || i === 0)) s += `<text x="${x + w / 2}" y="${H + 14}" text-anchor="middle">${labels[i]}</text>`;
   });
   el.innerHTML = s + "</svg>";
 }
@@ -196,7 +196,7 @@ function renderStats() {
   $("#sum-note").textContent = `Moyenne ${S.sumMean.toFixed(0)} · 80 % des tirages entre ${S.sumP10} et ${S.sumP90}.`;
   $("#pairs").innerHTML = `<table><tr><th>Paire</th><th class="num">Sorties</th></tr>${S.topPairs.slice(0, 10).map(p => `<tr><td>${balls({ n: [p.a, p.b], s: [] })}</td><td class="num">${p.c}</td></tr>`).join("")}</table>`;
   const dist = (arr, lab) => `<table><tr><th>${lab}</th>${arr.map((_, i) => `<th class="num">${i}</th>`).join("")}</tr><tr><td>% des tirages</td>${arr.map(v => `<td class="num">${pct(v / S.N)}</td>`).join("")}</tr></table>`;
-  $("#profiles").innerHTML = dist(S.oddDist, "Nb d'impairs") + "<br>" + dist(S.lowDist, "Nb de 1 à 25");
+  $("#profiles").innerHTML = `<div class="scroll">${dist(S.oddDist, "Nb d'impairs")}</div><br><div class="scroll">${dist(S.lowDist, "Nb de 1 à 25")}</div>`;
   const top = (arr, key, k = 10) => Array.from({ length: 50 }, (_, i) => i + 1).sort((a, b) => arr[b] - arr[a]).slice(0, k);
   $("#late").innerHTML = `<table><tr><th>Numéro</th><th class="num">Tirages sans sortir</th></tr>${top(S.numGap).map(n => `<tr><td>${balls({ n: [n], s: [] })}</td><td class="num">${S.numGap[n]}</td></tr>`).join("")}</table>`;
   $("#hot").innerHTML = `<table><tr><th>Numéro</th><th class="num">Sorties / 100 tirages</th></tr>${top(S.numRecent).map(n => `<tr><td>${balls({ n: [n], s: [] })}</td><td class="num">${S.numRecent[n]}</td></tr>`).join("")}</table>`;
