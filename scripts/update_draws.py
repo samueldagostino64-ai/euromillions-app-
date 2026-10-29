@@ -67,7 +67,7 @@ def parse_csv(text: str) -> list[dict]:
     reader = csv.DictReader(lines, delimiter=";")
     out = []
     for row in reader:
-        row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+        row = {k.strip().lower(): (v or "").strip() for k, v in row.items() if isinstance(k, str) and isinstance(v, (str, type(None)))}
         d = parse_date(row.get("date_de_tirage", ""))
         try:
             nums = sorted(int(row[f"boule_{i}"]) for i in range(1, 6))
