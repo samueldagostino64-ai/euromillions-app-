@@ -218,3 +218,38 @@ code { font-size: 13px; color: var(--accent-2); }
   .planet .orb { width: 36px; height: 36px; }
   .planet .lbl { font-size: 10px; padding: 1px 6px; }
 }
+
+/* ---------- Odon, l'astronaute du pourboire ---------- */
+.odon { position: fixed; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; flex-direction: column; align-items: flex-end; pointer-events: none; }
+.odon-btn { pointer-events: auto; position: relative; width: 84px; height: 98px; padding: 0; border: 0; background: none; box-shadow: none; animation: odon-float 5s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(139, 108, 255, 0.7)); }
+.odon-btn:hover, .odon-btn:focus-visible { box-shadow: none; filter: drop-shadow(0 0 22px rgba(47, 217, 245, 0.9)); }
+.odon-btn.loop { animation: odon-loop 1.4s cubic-bezier(.5, 0, .3, 1); }
+.odon-svg { width: 100%; height: 100%; overflow: visible; }
+.odon-name { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); font: 700 10px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: #fff; padding: 2px 8px; border-radius: 99px; background: linear-gradient(135deg, var(--series-2), var(--accent)); box-shadow: 0 0 12px -2px var(--series-2); white-space: nowrap; }
+.od-flames { animation: odon-flame .18s ease-in-out infinite alternate; transform-origin: 60px 98px; }
+.od-arm-r { animation: odon-wave 2.6s ease-in-out infinite; transform-origin: 90px 70px; }
+.od-steam { animation: odon-steam 1.6s ease-in-out infinite; }
+.od-antenna { animation: odon-blink 1.2s steps(2) infinite; }
+.odon-bubble { max-width: 210px; margin-bottom: 6px; padding: 8px 12px; border-radius: 14px 14px 4px 14px; font-size: 12.5px; line-height: 1.35; color: var(--text); background: rgba(12, 13, 40, 0.94); border: 1px solid var(--border-hi); box-shadow: 0 0 20px -6px var(--accent); opacity: 0; transform: translateY(8px) scale(.96); transition: opacity .35s, transform .35s; }
+.odon-bubble.show { opacity: 1; transform: none; }
+@keyframes odon-float { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-12px) rotate(6deg); } }
+@keyframes odon-loop { 0% { transform: translateY(0) rotate(0); } 40% { transform: translate(-30px, -60px) rotate(-200deg) scale(1.1); } 100% { transform: translateY(0) rotate(-360deg); } }
+@keyframes odon-flame { from { transform: scaleY(.75); opacity: .75; } to { transform: scaleY(1.15); opacity: 1; } }
+@keyframes odon-wave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-22deg); } }
+@keyframes odon-steam { 0% { opacity: 0; transform: translateY(4px); } 50% { opacity: .9; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes odon-blink { 50% { fill: #2fd9f5; } }
+.odon-modal { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; background: rgba(3, 4, 18, 0.72); backdrop-filter: blur(6px); }
+.odon-modal[hidden] { display: none; }
+.odon-card { position: relative; max-width: 440px; width: 100%; max-height: 100%; overflow-y: auto; text-align: center; padding: 22px 20px 18px; border-radius: 22px; background: linear-gradient(rgba(14, 15, 44, 0.97), rgba(14, 15, 44, 0.97)) padding-box, linear-gradient(135deg, var(--accent), var(--accent-2), var(--series-2)) border-box; border: 1.5px solid transparent; box-shadow: 0 0 60px -10px rgba(139, 108, 255, 0.8); }
+.odon-card h2 { font-size: 19px; margin: 6px 0 10px; }
+.odon-card p { color: var(--text-2); font-size: 14px; margin: 0 0 10px; text-align: left; }
+.odon-hero { width: 120px; height: 140px; margin: 0 auto; animation: odon-float 4s ease-in-out infinite; filter: drop-shadow(0 0 20px rgba(47, 217, 245, 0.6)); }
+.odon-amounts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 4px 0 14px; }
+.odon-amounts span { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-2); }
+.odon-go { display: inline-block; padding: 12px 22px; border-radius: 99px; font-weight: 700; color: #fff; text-decoration: none; background: linear-gradient(135deg, var(--series-2), var(--accent) 55%, var(--accent-2)); box-shadow: 0 8px 30px -8px rgba(255, 95, 168, 0.9); }
+.odon-go:hover { filter: brightness(1.1); }
+.odon-card small { display: block; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.odon-x { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1; }
+footer { padding-bottom: 120px; }
+@media (max-width: 480px) { .odon-btn { width: 66px; height: 78px; } }
+@media (prefers-reduced-motion: reduce) { .odon-btn, .od-flames, .od-arm-r, .od-steam, .od-antenna, .odon-hero { animation: none; } }

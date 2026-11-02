@@ -1,5 +1,6 @@
 import * as E from "./core.js";
 import { startSky, startOrbit } from "./cosmos.js";
+import { initOdon } from "./odon.js";
 
 startSky(document.getElementById("sky"));
 let ORBIT = null;
@@ -423,6 +424,7 @@ $("#h-more").addEventListener("click", () => { hLimit += 200; renderHistory(); }
 // ---------- démarrage ----------
 async function init() {
   try { CONFIG = await (await fetch("config.json", { cache: "no-cache" })).json(); } catch { CONFIG = {}; }
+  initOdon(CONFIG.lien_pourboire);
   const strip = c => ({ budgetWeek: c.budget_hebdo, budgetMonth: c.plafond_mensuel, drawsPerWeek: c.tirages_par_semaine, mode: c.strategie });
   CONFIG = Object.fromEntries(Object.entries(strip(CONFIG)).filter(([, v]) => v !== undefined));
   let data;
