@@ -1,5 +1,5 @@
 // Réseau d'abord (données toujours fraîches), copie locale en secours hors connexion.
-const CACHE = "em-v1";
+const CACHE = "em-v2";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {

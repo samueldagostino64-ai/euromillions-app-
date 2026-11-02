@@ -10,13 +10,28 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="EuroMillions">
-<meta name="theme-color" content="#102c5c">
+<meta name="theme-color" content="#05061a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="app/style.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand">EuroMillions <span>Stratège</span></div>
-  <div id="budget-pill" class="pill"></div>
+<canvas id="sky" aria-hidden="true"></canvas>
+<header class="hero">
+  <canvas id="orbit" aria-hidden="true"></canvas>
+  <div class="hero-text">
+    <div class="brand">EuroMillions<span>Stratège</span></div>
+    <div id="budget-pill" class="pill"></div>
+  </div>
+  <div class="core" id="core">
+    <div class="pedestal"></div>
+    <div class="core-ring r1"></div>
+    <div class="core-ring r2"></div>
+    <div class="core-sphere"><span class="core-l">Prochain tirage</span><b id="core-date">…</b><span class="core-l" id="core-jp"></span></div>
+  </div>
+  <nav id="planets" aria-label="Menu principal"></nav>
+  <div class="hero-last" id="hero-last"></div>
 </header>
 <nav class="tabs" role="tablist">
   <button data-tab="semaine" class="on">Grilles de la semaine</button>

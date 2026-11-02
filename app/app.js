@@ -1,4 +1,8 @@
 import * as E from "./core.js";
+import { startSky, startOrbit } from "./cosmos.js";
+
+startSky(document.getElementById("sky"));
+let ORBIT = null;
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -81,6 +85,7 @@ $$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.data
 function showTab(id) {
   $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === id));
   $$(".tab").forEach(t => (t.hidden = t.id !== id));
+  if (ORBIT) ORBIT.setActive(id);
   if (id === "stats" && STATS) renderStats();
   if (id === "tribunal" && ANALYSIS) renderTribunal();
   if (id === "public" && ANALYSIS) renderPublic();
@@ -430,6 +435,16 @@ async function init() {
   $("#h-year").innerHTML += years.map(y => `<option>${y}</option>`).join("");
   $("#j-date").value = new Date().toISOString().slice(0, 10);
   $("#foot").innerHTML = `Données officielles FDJ (<a href="${data.source}" target="_blank" rel="noopener">source</a>) · ${data.count} tirages du ${fmtDate(data.first)} au ${fmtDate(data.last)} · mis à jour le ${new Date(data.updated).toLocaleString("fr-FR")}. Jouer comporte des risques : endettement, isolement, dépendance. 09 74 75 13 13.`;
+  const last = DRAWS[DRAWS.length - 1], nd = nextDrawDate();
+  $("#core-date").textContent = nd.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+  const days = Math.round((nd - new Date(new Date().toDateString())) / 86400000);
+  $("#core-jp").textContent = days <= 0 ? "ce soir" : days === 1 ? "demain" : `dans ${days} jours`;
+  $("#hero-last").innerHTML = `<div class="l">Dernier tirage · ${fmtDate(last.d)}</div>${balls(last)}`;
+  ORBIT = startOrbit({
+    hero: $(".hero"), canvas: $("#orbit"), nav: $("#planets"), highlight: last.n,
+    ids: $$(".tabs button").map(b => b.dataset.tab),
+    onSelect: id => { showTab(id); $(".tabs").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); },
+  });
   renderBudget(); renderWeek(); renderStats(); renderBoards(); renderCost(); renderTables(); renderHistory();
   let tab = "semaine"; try { tab = sessionStorage.getItem("em.tab") || tab; } catch { /* ignore */ }
   showTab(tab);
