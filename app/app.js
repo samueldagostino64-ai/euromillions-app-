@@ -441,3 +441,4 @@ addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => {
   if (ANALYSIS && !$("#public").hidden) renderPublic();
 }, 200); });
 init();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
