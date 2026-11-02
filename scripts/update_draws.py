@@ -97,6 +97,8 @@ def parse_zip(blob: bytes, diag: list) -> list[dict]:
                 except UnicodeDecodeError:
                     continue
             rows = parse_csv(text)
+            lines = text.splitlines()
+            diag.append({"fichier": name, "entete": lines[0] if lines else "", "exemple": lines[1] if len(lines) > 1 else ""})
             if not rows:
                 diag.append(f"{name} : 0 ligne lue, entête = " + " | ".join(text.splitlines()[:2])[:600])
             draws.extend(rows)
