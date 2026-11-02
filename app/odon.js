@@ -56,6 +56,7 @@ export function initOdon(url) {
       <p>EuroMillions Stratège est gratuit, sans pub, et tes données restent sur ton téléphone. Odon passe ses nuits à recalculer 20 ans de tirages et à traquer les numéros que tout le monde joue.</p>
       <p>Si l'appli te plaît, ou si un jour une de ses grilles te fait gagner, laisse-lui un petit pourboire. Ça paie le carburant… et les prochaines améliorations.</p>
       <div class="odon-amounts" aria-hidden="true"><span>☕ un café</span><span>🚀 un plein</span><span>🪐 une orbite complète</span></div>
+      <p class="odon-note">ℹ️ Tu vas arriver sur la page Ko-fi <strong>« Sac de Layon »</strong> : c'est l'autre appli du même créateur, avec la même cagnotte. Pas d'inquiétude, c'est bien Odon qui en profite.</p>
       <a class="odon-go" href="${url}" target="_blank" rel="noopener">Offrir un pourboire à Odon</a>
       <small>Don libre, en quelques secondes, sans créer de compte. Rien n'est débloqué : tout reste gratuit pour tout le monde.</small>
     </div>`;

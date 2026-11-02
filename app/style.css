@@ -253,3 +253,4 @@ code { font-size: 13px; color: var(--accent-2); }
 footer { padding-bottom: 120px; }
 @media (max-width: 480px) { .odon-btn { width: 66px; height: 78px; } }
 @media (prefers-reduced-motion: reduce) { .odon-btn, .od-flames, .od-arm-r, .od-steam, .od-antenna, .odon-hero { animation: none; } }
+.odon-note { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(47, 217, 245, 0.08); border: 1px solid rgba(47, 217, 245, 0.35); font-size: 13.5px; line-height: 1.45; color: #d9f7ff; text-align: left; }
