@@ -18,8 +18,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Télécharger l'historique FDJ
         run: python scripts/update_draws.py
+      - name: Recalculer le tribunal et la popularité (si nouveaux tirages)
+        run: |
+          if git diff --quiet -- data/draws.json && [ -f data/analysis.json ]; then
+            echo "Pas de nouveau tirage, analyse inchangée."
+          else
+            node scripts/analyze.mjs
+          fi
       - name: Enregistrer s'il y a du nouveau
         run: |
           git config user.name "github-actions[bot]"

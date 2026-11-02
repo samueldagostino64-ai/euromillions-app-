@@ -14,6 +14,8 @@
 </header>
 <nav class="tabs" role="tablist">
   <button data-tab="semaine" class="on">Grilles de la semaine</button>
+  <button data-tab="tribunal">Tribunal des stratégies</button>
+  <button data-tab="public">Ce que joue le public</button>
   <button data-tab="stats">Statistiques</button>
   <button data-tab="generateur">Générateur</button>
   <button data-tab="recouvrement">Recouvrement</button>
@@ -37,6 +39,43 @@
       <p class="muted">Formules calculées pour ton budget hebdo (onglet Budget). Les mêmes grilles sont envoyées par le message hebdomadaire.</p>
       <div id="plans"></div>
     </div>
+  </section>
+
+  <!-- TRIBUNAL -->
+  <section id="tribunal" class="tab" hidden>
+    <div class="card honest" id="t-verdict"></div>
+    <div class="card">
+      <h2>Le classement</h2>
+      <p class="muted" id="t-sub"></p>
+      <div class="scroll" id="t-table"></div>
+      <p class="muted">« Bons numéros par grille » : le hasard donne 0,500 en moyenne. L'écart z mesure si une méthode fait mieux que le hasard : entre −2 et +2, la différence n'est que de la chance. « Rang vs hasard » : la place de la méthode parmi 300 joueurs qui jouent au hasard (50 % = dans la moyenne).</p>
+    </div>
+    <div class="card">
+      <h2>Bilan année par année</h2>
+      <div class="form"><label>Méthode <select id="t-strat"></select></label></div>
+      <div id="t-years" class="chart"></div>
+      <p class="muted" id="t-best"></p>
+    </div>
+  </section>
+
+  <!-- POPULARITE -->
+  <section id="public" class="tab" hidden>
+    <div class="card honest" id="p-intro"></div>
+    <div class="card">
+      <h2>Gains réellement versés selon la popularité des numéros tirés</h2>
+      <p class="muted" id="p-proof-sub"></p>
+      <div class="scroll" id="p-proof"></div>
+    </div>
+    <div class="card">
+      <h2>Popularité de chaque numéro</h2>
+      <p class="muted">Au-dessus de 0 : numéro sur-joué par le public (tu partages plus). En dessous : numéro boudé (tu partages moins). En pourcentage de co-gagnants par rapport à un numéro moyen.</p>
+      <div id="p-nums" class="chart"></div>
+    </div>
+    <div class="card">
+      <h2>Popularité de chaque étoile</h2>
+      <div id="p-stars" class="chart"></div>
+    </div>
+    <div class="card"><h2>Fiabilité du modèle</h2><div id="p-valid"></div></div>
   </section>
 
   <!-- STATISTIQUES -->

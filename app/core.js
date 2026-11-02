@@ -4,6 +4,7 @@
 export const PRICE = 2.5;          // € par combinaison simple (My Million inclus)
 export const ETOILE_PLUS = 1;      // € par combinaison simple
 export const JACKPOT_ODDS = 139838160;
+let POP = null; // modèle de popularité mesurée (fitPopularity), facultatif
 export const STARS_12_SINCE = "2016-09-27"; // premier tirage avec 12 étoiles
 
 // Grilles multiples autorisées (règlement FDJ homologué ANJ 2025) : numéros -> étoiles max
@@ -118,8 +119,18 @@ export function popularity(nums, stars, pastSets = null) {
   const n = nums.slice().sort((a, b) => a - b);
   let s = 0;
   const reasons = [];
-  const dates = n.filter(x => x <= 31).length;
-  if (dates >= 3) { s += (dates - 2) * 12; reasons.push(`${dates} numéros ≤ 31 (dates)`); }
+  let share = 1;
+  if (POP) {
+    // popularité mesurée sur les gagnants FDJ : 12 points pour une grille moyenne, 0 à -1 écart-type
+    const z = shareLog(n, stars) / POP.ticketSD;
+    share = Math.exp(shareLog(n, stars));
+    s += Math.max(0, Math.round(12 + 12 * z));
+    if (z > 0.5) reasons.push(`numéros très joués par le public (≈ ${Math.round((share - 1) * 100)} % de co-gagnants en plus)`);
+    else if (z < -0.5) reasons.push(`numéros boudés par le public (≈ ${Math.round((1 - share) * 100)} % de co-gagnants en moins)`);
+  } else {
+    const dates = n.filter(x => x <= 31).length;
+    if (dates >= 3) { s += (dates - 2) * 12; reasons.push(`${dates} numéros ≤ 31 (dates)`); }
+  }
   let consec = 0;
   for (let i = 1; i < 5; i++) if (n[i] - n[i - 1] === 1) consec++;
   if (consec) { s += consec * 8; reasons.push(`${consec} suite(s)`); }
@@ -131,9 +142,9 @@ export function popularity(nums, stars, pastSets = null) {
   if (endings.size <= 2) { s += 10; reasons.push("mêmes terminaisons"); }
   const mult = [5, 7, 10].find(m => n.every(x => x % m === 0));
   if (mult) { s += 20; reasons.push(`tous multiples de ${mult}`); }
-  if (n.includes(7)) s += 3;
-  if (n.reduce((a, b) => a + b, 0) < 90) { s += 8; reasons.push("somme faible"); }
-  if (stars && stars.length === 2) {
+  if (!POP && n.includes(7)) s += 3;
+  if (!POP && n.reduce((a, b) => a + b, 0) < 90) { s += 8; reasons.push("somme faible"); }
+  if (!POP && stars && stars.length === 2) {
     if (stars.includes(7)) s += 3;
     if (stars[0] <= 7 && stars[1] <= 7) s += 4;
   }
@@ -144,7 +155,7 @@ export function popularity(nums, stars, pastSets = null) {
       if (k >= 4) { s += 25; reasons.push("rejoue un ancien tirage"); break; }
     }
   }
-  return { score: Math.min(100, s), reasons };
+  return { score: Math.min(100, s), reasons, share };
 }
 
 // ---------- générateur de grilles ----------
@@ -197,21 +208,27 @@ export function generateGrids({ stats, draws, count, mode = "mix", seed = 1, max
   const past = draws ? pastSetsOf(draws) : null;
   const lo = stats ? stats.sumP10 : 95, hi = stats ? stats.sumP90 : 160;
   const grids = [];
+  // Avec la popularité mesurée, on garde pour chaque grille la meilleure de plusieurs candidates
+  const pool = POP ? 60 : 1;
   let tries = 0;
   while (grids.length < count && tries < 20000 * count) {
-    tries++;
-    const n = pickWeighted(wN, 5, rnd);
-    const s = pickWeighted(wS, 2, rnd);
-    const sum = n.reduce((a, b) => a + b, 0);
-    const odd = n.filter(x => x % 2).length;
-    const relax = tries > 5000 * count; // si les contraintes sont trop serrées, on relâche
-    if (!relax && (sum < lo || sum > hi || odd === 0 || odd === 5)) continue;
-    const pop = popularity(n, s, past);
-    if (pop.score > (relax ? maxPop + 20 : maxPop)) continue;
-    const share = relax ? 3 : maxShared;
-    if (grids.some(g => g.n.filter(x => n.includes(x)).length > share)) continue;
-    if (grids.some(g => g.n.join() === n.join() && g.s.join() === s.join())) continue;
-    grids.push({ n, s, pop: pop.score });
+    let best = null;
+    for (let c = 0; c < pool && tries < 20000 * count; c++) {
+      tries++;
+      const n = pickWeighted(wN, 5, rnd);
+      const s = pickWeighted(wS, 2, rnd);
+      const sum = n.reduce((a, b) => a + b, 0);
+      const odd = n.filter(x => x % 2).length;
+      const relax = tries > 5000 * count; // si les contraintes sont trop serrées, on relâche
+      if (!relax && (sum < lo || sum > hi || odd === 0 || odd === 5)) continue;
+      const pop = popularity(n, s, past);
+      if (pop.score > (relax ? maxPop + 20 : maxPop)) continue;
+      const share = relax ? 3 : maxShared;
+      if (grids.some(g => g.n.filter(x => n.includes(x)).length > share)) continue;
+      if (grids.some(g => g.n.join() === n.join() && g.s.join() === s.join())) continue;
+      if (!best || pop.score < best.pop || (pop.score === best.pop && pop.share < best.share)) best = { n, s, pop: pop.score, share: pop.share };
+    }
+    if (best) grids.push(best);
   }
   return grids;
 }
@@ -381,4 +398,90 @@ export function proposePlans({ budgetWeek, drawsPerWeek = 2, stats, draws, mode 
     p.sim = simulate(p.grids, { etoilePlus: p.etoilePlus, trials: 30000, seed: seed + 99 });
   }
   return plans;
+}
+
+// ---------- popularité mesurée (régression sur le nombre de gagnants FDJ) ----------
+// Chaque tirage publie le nombre de gagnants par rang. À ventes égales, un rang a plus de
+// gagnants quand les numéros tirés sont des numéros que le public joue souvent.
+// Étape 1, par tirage : log(gagnants/probabilité) ~ a + b·(nb de bons numéros) + c·(nb de bonnes étoiles).
+//   b mesure à quel point les 5 numéros tirés sont « joués », c pareil pour les 2 étoiles ;
+//   la constante a absorbe le volume de ventes du tirage.
+// Étape 2, sur tous les tirages : 5·b = Σ β(numéros tirés), 2·c = Σ γ(étoiles tirées) (moindres carrés ridge).
+// β(n) > 0 : numéro plus joué que la moyenne ; exp(β) ≈ facteur de partage.
+const CANON = ["5+2","5+1","5+0","4+2","4+1","3+2","4+0","2+2","3+1","3+0","1+2","2+1","2+0"];
+const FIT_RANKS = ["3+1","3+0","2+2","2+1","2+0","1+2","3+2","4+0","4+1"];
+
+export function starsInPlay(d) { return d < "2011-05-10" ? 9 : d < "2016-09-24" ? 11 : 12; }
+function pCombo(k, j, ns) { return C(5, k) * C(45, 5 - k) / C(50, 5) * C(2, j) * C(ns - 2, 2 - j) / C(ns, 2); }
+
+function solve(A, b) { // Gauss-Jordan, A carrée symétrique définie positive
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  return M.map((r, i) => r[n] / r[i]);
+}
+function invert(A) { const n = A.length; return A.map((_, i) => solve(A, A.map((__, k) => (k === i ? 1 : 0)))).map((col, i, cols) => cols.map(c => c[i])); }
+
+// Régression linéaire pondérée simple y ~ X (petite dimension), renvoie coefficients
+function wls(X, y, w) {
+  const p = X[0].length, A = Array.from({ length: p }, () => Array(p).fill(0)), b = Array(p).fill(0);
+  X.forEach((x, i) => { for (let a = 0; a < p; a++) { b[a] += w[i] * x[a] * y[i]; for (let c = 0; c < p; c++) A[a][c] += w[i] * x[a] * x[c]; } });
+  return solve(A, b);
+}
+
+export function drawSignals(dr) {
+  if (!dr.g) return null;
+  const ns = starsInPlay(dr.d), X = [], y = [], w = [];
+  for (const key of FIT_RANKS) {
+    const row = dr.g[CANON.indexOf(key)];
+    if (!row) continue;
+    const win = row[2] || row[1];          // gagnants Europe si dispo, sinon France
+    if (!win || win < 30) continue;
+    const [k, j] = key.split("+").map(Number);
+    X.push([1, k, j]); y.push(Math.log(win / pCombo(k, j, ns))); w.push(win);
+  }
+  if (X.length < 5) return null;
+  const [, bk, bj] = wls(X, y, w.map(v => Math.sqrt(v)));
+  return { B: 5 * bk, G: 2 * bj };
+}
+
+export function fitPopularity(draws, { lambda = 2 } = {}) {
+  const obs = draws.map(d => ({ d, s: drawSignals(d) })).filter(o => o.s);
+  // Étape 2 : ridge. Variables : 50 numéros puis 12 étoiles (deux régressions indépendantes)
+  function ridge(rows, dim, pick, target) {
+    const A = Array.from({ length: dim }, () => Array(dim).fill(0)), b = Array(dim).fill(0);
+    const mean = rows.reduce((s, o) => s + target(o), 0) / rows.length;
+    for (const o of rows) { const idx = pick(o).map(v => v - 1), t = target(o) - mean; for (const a of idx) { b[a] += t; for (const c of idx) A[a][c] += 1; } }
+    for (let a = 0; a < dim; a++) A[a][a] += lambda;
+    const beta = solve(A, b), inv = invert(A);
+    let rss = 0; for (const o of rows) { const e = target(o) - mean - pick(o).reduce((s, v) => s + beta[v - 1], 0); rss += e * e; }
+    const s2 = rss / Math.max(1, rows.length - dim);
+    const m = beta.reduce((s, v) => s + v, 0) / dim;
+    return { beta: beta.map(v => v - m), se: inv.map((r, i) => Math.sqrt(Math.max(0, r[i] * s2))), n: rows.length };
+  }
+  const num = ridge(obs, 50, o => o.d.n, o => o.s.B);
+  const starRows = obs.filter(o => o.d.d >= STARS_12_SINCE);
+  const star = ridge(starRows, 12, o => o.d.s, o => o.s.G);
+  // dispersion du score d'un ticket aléatoire, pour convertir en points
+  const rnd = mulberry32(99); let s1 = 0, s2 = 0; const T = 20000;
+  for (let t = 0; t < T; t++) {
+    const pool = Array.from({ length: 50 }, (_, i) => i + 1);
+    let m = 0; for (let i = 0; i < 5; i++) { const j = i + Math.floor(rnd() * (50 - i)); [pool[i], pool[j]] = [pool[j], pool[i]]; m += num.beta[pool[i] - 1]; }
+    const a = 1 + Math.floor(rnd() * 12); let b = 1 + Math.floor(rnd() * 11); if (b >= a) b++;
+    m += star.beta[a - 1] + star.beta[b - 1]; s1 += m; s2 += m * m;
+  }
+  const sd = Math.sqrt(s2 / T - (s1 / T) ** 2);
+  return { num: num.beta, numSE: num.se, star: star.beta, starSE: star.se, nDraws: num.n, nStarDraws: star.n, ticketSD: sd };
+}
+
+export function setPopularityModel(model) { POP = model; }
+export function getPopularityModel() { return POP; }
+
+// Log du facteur de partage d'une grille : 0 = grille moyenne, +0,3 ≈ 35 % de co-gagnants en plus
+export function shareLog(nums, stars) {
+  if (!POP) return 0;
+  return nums.reduce((s, n) => s + POP.num[n - 1], 0) + (stars || []).reduce((s, x) => s + POP.star[x - 1], 0);
 }

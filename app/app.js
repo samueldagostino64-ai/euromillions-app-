@@ -12,7 +12,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("em." + k); return v ? JSON.parse(v) : d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem("em." + k, JSON.stringify(v)); } catch { /* navigation privée */ } },
 };
-let DRAWS = [], STATS = null, CONFIG = {}, lastGen = [], genSeed = 1;
+let DRAWS = [], STATS = null, ANALYSIS = null, CONFIG = {}, lastGen = [], genSeed = 1;
 const settings = () => ({ budgetWeek: 10, budgetMonth: 45, drawsPerWeek: 2, mode: "mix", pauseUntil: "", ...CONFIG, ...store.get("settings", {}) });
 const journal = () => store.get("journal", []);
 
@@ -26,11 +26,16 @@ function popTag(score) {
   const txt = score <= 10 ? "peu jouée" : score <= 25 ? "moyennement jouée" : "très jouée";
   return `<span class="tag ${cls}" title="Score de popularité ${score}/100">${txt} · ${score}</span>`;
 }
+function shareTag(share) {
+  if (!E.getPopularityModel() || !share) return "";
+  const d = Math.round((share - 1) * 100);
+  return `<span class="tag ${d <= -10 ? "good" : d >= 10 ? "bad" : ""}" title="Nombre de co-gagnants attendu si cette grille gagne, comparé à une grille moyenne">${d > 0 ? "+" : ""}${d} % de co-gagnants</span>`;
+}
 function gridList(grids) {
   const past = E.pastSetsOf(DRAWS);
   return grids.map((g, i) => {
     const p = E.popularity(g.n, g.s, past);
-    return `<div class="grille"><span class="muted">#${i + 1}</span>${balls(g)}${popTag(p.score)}</div>`;
+    return `<div class="grille"><span class="muted">#${i + 1}</span>${balls(g)}<span class="balls">${shareTag(p.share)}${popTag(p.score)}</span></div>`;
   }).join("");
 }
 
@@ -51,6 +56,19 @@ function bars(el, values, labels, { alt = false, highlight = null, fmt = v => v 
   });
   el.innerHTML = s + "</svg>";
 }
+// Barres divergentes autour de 0 (popularité) : orange = sur-joué, bleu = boudé
+function divBars(el, values, labels, fmt) {
+  const W = Math.max(300, el.clientWidth || 760), H = 220, pad = 34, n = values.length;
+  const max = Math.max(...values.map(Math.abs), 1e-9), mid = H / 2, bw = (W - pad) / n, sc = (H / 2 - 8) / max;
+  let s = `<svg viewBox="0 0 ${W} ${H + 18}" role="img">`;
+  for (const t of [max, max / 2, 0, -max / 2, -max]) { const y = mid - t * sc; s += `<line class="gridline" x1="${pad}" x2="${W}" y1="${y}" y2="${y}"/><text x="0" y="${y + 3}">${fmt(t)}</text>`; }
+  values.forEach((v, i) => {
+    const x = pad + i * bw + 1, w = Math.max(1, bw - 2), h = Math.max(1, Math.abs(v) * sc), y = v >= 0 ? mid - h : mid;
+    s += `<rect class="bar${v >= 0 ? " alt" : ""}" data-tip="${labels[i]} : ${fmt(v)}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(3, w / 2)}"/>`;
+    if (bw >= 14 || (bw >= 9 ? i % 2 === 0 : (i + 1) % 5 === 0 || i === 0)) s += `<text x="${x + w / 2}" y="${H + 14}" text-anchor="middle">${labels[i]}</text>`;
+  });
+  el.innerHTML = s + `<line class="zero" x1="${pad}" x2="${W}" y1="${mid}" y2="${mid}"/></svg>`;
+}
 document.addEventListener("mousemove", e => {
   const t = e.target.closest && e.target.closest("[data-tip]");
   if (!t) { tip.hidden = true; return; }
@@ -64,6 +82,8 @@ function showTab(id) {
   $$(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === id));
   $$(".tab").forEach(t => (t.hidden = t.id !== id));
   if (id === "stats" && STATS) renderStats();
+  if (id === "tribunal" && ANALYSIS) renderTribunal();
+  if (id === "public" && ANALYSIS) renderPublic();
   try { sessionStorage.setItem("em.tab", id); } catch { /* ignore */ }
 }
 
@@ -246,7 +266,8 @@ $("#a-run").addEventListener("click", () => {
     if (k === 5 && j === 2) exact = d;
   }
   const sum = n.reduce((a, b) => a + b, 0);
-  $("#a-out").innerHTML = `<div class="grille">${balls({ n, s })}${popTag(p.score)}</div>
+  $("#a-out").innerHTML = `<div class="grille">${balls({ n, s })}<span class="balls">${shareTag(p.share)}${popTag(p.score)}</span></div>
+    ${E.getPopularityModel() ? `<p><b>Si elle décroche un gros lot</b>, tu partagerais avec environ ${Math.round((p.share - 1) * 100) >= 0 ? Math.round((p.share - 1) * 100) + " % de gagnants en plus" : Math.round((1 - p.share) * 100) + " % de gagnants en moins"} qu'une grille moyenne, d'après les gagnants réels FDJ.</p>` : ""}
     <p>${p.reasons.length ? "Ce qui la rend populaire : " + p.reasons.join(", ") + "." : "Rien de typiquement « populaire » : bon point anti-partage."}</p>
     <p class="muted">Somme ${sum} (80 % des tirages entre ${STATS.sumP10} et ${STATS.sumP90}). ${exact ? `Cette combinaison exacte est déjà sortie le ${fmtDate(exact.d)}.` : "Jamais sortie telle quelle."} Meilleur résultat historique : ${best.k} numéro(s) + ${best.j} étoile(s) le ${fmtDate(best.d.d)}.</p>
     <p class="muted">Sa probabilité de jackpot est la même que n'importe quelle autre : 1 sur 139 838 160.</p>`;
@@ -331,6 +352,55 @@ $("#p-run").addEventListener("click", () => {
     + plans.map((p, i) => planHTML(p, i === 0)).join("");
 });
 
+// ---------- tribunal des stratégies ----------
+const pctS = v => (v > 0 ? "+" : "") + Math.round(v * 100) + " %";
+function renderTribunal() {
+  const A = ANALYSIS; if (!A) { $("#t-verdict").textContent = "L'analyse n'est pas encore calculée."; return; }
+  const S = A.strategies.slice().sort((a, b) => b.retour - a.retour);
+  const anyBeat = S.filter(x => x.id !== "hasard" && x.zBonsNumeros > 2);
+  const ap = A.strategies.find(x => x.id === "antipartage"), dates = A.strategies.find(x => x.id === "dates");
+  $("#t-verdict").innerHTML = `<strong>Verdict sur ${A.tiragesJoues.toLocaleString("fr-FR")} tirages réels (${fmtDate(A.depuis)} → ${fmtDate(A.jusqua)}), payés avec les vrais gains FDJ.</strong>
+    ${anyBeat.length ? "Une méthode dépasse le hasard de façon significative : à surveiller." : "Aucune méthode ne trouve plus de bons numéros que le hasard. Chauds, retards, paires, fréquences, modèle prédictif : tous restent dans la marge de la chance (écart z entre −2 et +2)."}
+    Ce qui change vraiment, c'est <b>combien on touche quand on gagne</b> : ${fmtEur(ap.gainMoyenParGrilleGagnante)} par grille gagnante pour l'anti-partage contre ${fmtEur(dates.gainMoyenParGrilleGagnante)} pour les dates d'anniversaire. Sur les petits rangs l'écart est faible ; sur les gros rangs il atteint +40 à +55 % (onglet « Ce que joue le public »).`;
+  $("#t-sub").textContent = `Chaque méthode joue ${A.grillesParTirage} grilles par tirage à ${fmtEur(A.prixGrille)} (tarif actuel), soit ${fmtEur(A.tiragesJoues * A.grillesParTirage * A.prixGrille)} misés, et ne voit que les tirages passés. Aucun jackpot touché par personne.`;
+  $("#t-table").innerHTML = `<table><tr><th>Méthode</th><th class="num">Gains</th><th class="num">Retour</th><th class="num">Bons n°/grille</th><th class="num">Écart z</th><th class="num">€ par grille gagnante</th><th class="num">Rang vs hasard</th><th class="num">Meilleur lot</th></tr>
+    ${S.map(x => `<tr class="${x.id === "antipartage" ? "me" : ""}"><td title="${x.desc}">${x.nom}</td><td class="num">${fmtEur(x.gains)}</td><td class="num">${(x.retour * 100).toFixed(1)} %</td><td class="num">${x.bonsNumerosParGrille.toFixed(3)}</td><td class="num ${Math.abs(x.zBonsNumeros) > 2 ? "bad" : ""}">${x.zBonsNumeros.toFixed(2)}</td><td class="num">${fmtEur(x.gainMoyenParGrilleGagnante)}</td><td class="num">${Math.round(x.percentileGains * 100)} %</td><td class="num">${x.meilleur ? `${x.meilleur.combo} · ${fmtEur(x.meilleur.gain)}` : "–"}</td></tr>`).join("")}
+    <tr><td class="muted">300 joueurs au hasard (médiane)</td><td class="num muted">${fmtEur(A.hasard.gainsMedian)}</td><td class="num muted">${(A.hasard.gainsMedian / (A.tiragesJoues * A.grillesParTirage * A.prixGrille) * 100).toFixed(1)} %</td><td class="num muted">${A.hasard.bonsNumerosMoyen.toFixed(3)}</td><td></td><td class="num muted">${fmtEur(A.hasard.gainParGrilleGagnanteMedian)}</td><td class="num muted">50 %</td><td></td></tr></table>
+    <p class="muted">90 % des joueurs au hasard ont touché entre ${fmtEur(A.hasard.gainsP5)} et ${fmtEur(A.hasard.gainsP95)}. Le retour moyen théorique est d'environ 50 %, mais l'essentiel vient des gros lots, que personne n'a touchés ici : sur 20 ans à 10 € par semaine, on récupère en pratique 15 à 20 % de sa mise.</p>`;
+  const sel = $("#t-strat");
+  if (!sel.options.length) { sel.innerHTML = A.strategies.map(x => `<option value="${x.id}" ${x.id === "antipartage" ? "selected" : ""}>${x.nom}</option>`).join(""); sel.addEventListener("change", renderTribunalYears); }
+  renderTribunalYears();
+}
+function renderTribunalYears() {
+  const x = ANALYSIS.strategies.find(s => s.id === $("#t-strat").value);
+  const ys = Object.keys(x.parAnnee).sort();
+  divBars($("#t-years"), ys.map(y => x.parAnnee[y].gains - x.parAnnee[y].mise), ys.map(y => y.slice(2)), v => fmtEur(Math.round(v)));
+  $("#t-best").textContent = `${x.desc} Bilan net par année (gains − mises). Meilleur lot : ${x.meilleur ? `${x.meilleur.combo} le ${fmtDate(x.meilleur.date)} (${fmtEur(x.meilleur.gain)})` : "aucun"}.`;
+}
+const fmtEur = v => (+v).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: v >= 1000 ? 0 : 2 });
+
+// ---------- ce que joue le public ----------
+function renderPublic() {
+  const A = ANALYSIS; if (!A) return;
+  const P = A.popularite, V = P.validation, pr = V.preuve;
+  const ranked = P.num.map((b, i) => ({ n: i + 1, b })).sort((a, b) => a.b - b.b);
+  const pctB = b => pctS(Math.exp(b) - 1);
+  $("#p-intro").innerHTML = `<strong>Comment on le sait.</strong> À chaque tirage, la FDJ publie le nombre de gagnants à chaque rang. À ventes égales, quand les numéros tirés sont des numéros que tout le monde joue, il y a beaucoup plus de gagnants. En croisant ${P.nDraws.toLocaleString("fr-FR")} tirages, on mesure la popularité de chaque numéro et de chaque étoile.
+    Les plus boudés : <b>${ranked.slice(0, 6).map(x => x.n).join(", ")}</b>. Les plus joués : <b>${ranked.slice(-6).reverse().map(x => x.n).join(", ")}</b>. Ça ne change pas ta chance de gagner, mais ça change ce que tu touches.`;
+  $("#p-proof-sub").textContent = `Test sur les ${pr.tirages} tirages depuis 2021, avec un modèle appris uniquement sur les tirages d'avant 2021. On compare le tiers des tirages aux numéros les plus boudés et le tiers aux numéros les plus joués (gain médian versé par gagnant).`;
+  $("#p-proof").innerHTML = `<table><tr><th>Rang</th><th class="num">Numéros boudés</th><th class="num">Numéros joués</th><th class="num">Écart</th></tr>
+    ${pr.rangs.map(r => `<tr><td>${r.combo.replace("+", " + ")}★</td><td class="num">${fmtEur(r.gainBoudes)}</td><td class="num">${fmtEur(r.gainJoues)}</td><td class="num good">${pctS(r.ecart)}</td></tr>`).join("")}
+    <tr><td>Jackpot : co-gagnants moyens par tirage (moins = mieux)</td><td class="num">${pr.jackpotGagnantsBoudes.toFixed(2)}</td><td class="num">${pr.jackpotGagnantsJoues.toFixed(2)}</td><td class="num good">${pctS(pr.jackpotGagnantsBoudes / pr.jackpotGagnantsJoues - 1)}</td></tr></table>`;
+  divBars($("#p-nums"), P.num.map(b => Math.exp(b) - 1), P.num.map((_, i) => i + 1), v => pctS(v));
+  divBars($("#p-stars"), P.star.map(b => Math.exp(b) - 1), P.star.map((_, i) => i + 1), v => pctS(v));
+  $("#p-valid").innerHTML = `<table>
+    <tr><td>Tirages utilisés</td><td class="num">${P.nDraws.toLocaleString("fr-FR")} (étoiles : ${P.nStarDraws.toLocaleString("fr-FR")} depuis 2016)</td></tr>
+    <tr><td>Prédiction hors échantillon, numéros (corrélation, 1 = parfait)</td><td class="num">${V.corrNumeros.toFixed(2)}</td></tr>
+    <tr><td>Prédiction hors échantillon, étoiles</td><td class="num">${V.corrEtoiles.toFixed(2)}</td></tr>
+    <tr><td>Stabilité dans le temps (avant 2021 vs tout l'historique)</td><td class="num">${V.stabiliteNumeros.toFixed(2)}</td></tr></table>
+    <p class="muted">Le modèle est recalculé automatiquement après chaque tirage. Les effets de « forme » (suites, progressions, multiples) ne sont pas mesurables par numéro : le générateur les pénalise en plus.</p>`;
+}
+
 // ---------- historique ----------
 let hLimit = 100;
 function renderHistory() {
@@ -354,6 +424,7 @@ async function init() {
   try { data = await (await fetch("data/draws.json", { cache: "no-cache" })).json(); }
   catch { $("#loading").innerHTML = "L'historique n'est pas encore téléchargé. Il le sera au premier passage de la mise à jour automatique (onglet Actions du dépôt GitHub)."; return; }
   DRAWS = data.draws; STATS = E.computeStats(DRAWS);
+  try { ANALYSIS = await (await fetch("data/analysis.json", { cache: "no-cache" })).json(); E.setPopularityModel(ANALYSIS.popularite); } catch { ANALYSIS = null; }
   $("#loading").remove();
   const years = [...new Set(DRAWS.map(d => d.d.slice(0, 4)))].reverse();
   $("#h-year").innerHTML += years.map(y => `<option>${y}</option>`).join("");
@@ -364,5 +435,9 @@ async function init() {
   showTab(tab);
 }
 let rz;
-addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (STATS && !$("#stats").hidden) renderStats(); }, 200); });
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => {
+  if (STATS && !$("#stats").hidden) renderStats();
+  if (ANALYSIS && !$("#tribunal").hidden) renderTribunalYears();
+  if (ANALYSIS && !$("#public").hidden) renderPublic();
+}, 200); });
 init();

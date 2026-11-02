@@ -9,6 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cfg = JSON.parse(fs.readFileSync(path.join(root, "config.json"), "utf8"));
 const { draws } = JSON.parse(fs.readFileSync(path.join(root, "data/draws.json"), "utf8"));
 const stats = E.computeStats(draws);
+try { E.setPopularityModel(JSON.parse(fs.readFileSync(path.join(root, "data/analysis.json"), "utf8")).popularite); } catch { /* sans analyse : heuristiques */ }
 const wk = E.isoWeek();
 const budgetWeek = cfg.budget_hebdo ?? 10, dpw = cfg.tirages_par_semaine ?? 2;
 const eur = v => v.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
@@ -22,7 +23,7 @@ const lines = [
   "",
   `### Formule recommandée : ${best.title}`,
   "```",
-  ...best.grids.map(fmt),
+  ...best.grids.map(g => `${fmt(g)}   (${Math.round((Math.exp(E.shareLog(g.n, g.s)) - 1) * 100)} % de co-gagnants vs moyenne)`),
   "```",
   `Coût : **${eur(best.cost.perDraw)}**/tirage, **${eur(best.cost.perWeek)}** pour ${dpw === 2 ? "mardi + vendredi" : "1 tirage"} (budget ${eur(budgetWeek)}).`,
   `Au moins un gain : ${(best.sim.pAnyEP * 100).toFixed(1)} % par tirage. Jackpot : 1 sur ${Math.round(1 / best.pJackpot).toLocaleString("fr-FR")}.`,

@@ -113,6 +113,10 @@ details summary { cursor: pointer; color: var(--accent); font-size: 14px; margin
 .chart text { fill: var(--muted); font-size: 10px; }
 .chart .bar { fill: var(--series-1); }
 .chart .bar.alt { fill: var(--series-2); }
+.chart .zero { stroke: var(--text-2); }
+tr.me td { font-weight: 600; }
+td.good { color: var(--good); }
+td.bad { color: var(--bad); }
 .chart .bar:hover { opacity: .8; }
 .chart .gridline { stroke: var(--grid); }
 .tip { position: fixed; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 10; }
