@@ -60,6 +60,55 @@ def parse_date(raw: str) -> date | None:
     return None
 
 
+# Ordre officiel des rangs selon l'époque (nombre d'étoiles en jeu), en "numéros+étoiles"
+RANK_ORDER = {
+    9: ["5+2", "5+1", "5+0", "4+2", "4+1", "4+0", "3+2", "2+2", "3+1", "3+0", "1+2", "2+1"],
+    11: ["5+2", "5+1", "5+0", "4+2", "4+1", "4+0", "3+2", "2+2", "3+1", "3+0", "1+2", "2+1", "2+0"],
+    12: ["5+2", "5+1", "5+0", "4+2", "4+1", "3+2", "4+0", "2+2", "3+1", "3+0", "1+2", "2+1", "2+0"],
+}
+# Ordre canonique de sortie (celui du règlement actuel)
+CANON = RANK_ORDER[12]
+
+
+def stars_in_play(d: date) -> int:
+    return 9 if d < date(2011, 5, 10) else 11 if d < date(2016, 9, 24) else 12
+
+
+def num(raw: str) -> float | None:
+    raw = (raw or "").replace("\u00a0", "").replace(" ", "").replace(",", ".")
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def rank_col(row: dict, kind: str, r: int) -> float | None:
+    for key in (f"{kind}{r}_euro_millions", f"{kind}{r}"):
+        if key in row:
+            return num(row[key])
+    return None
+
+
+def parse_prizes(row: dict, d: date) -> list | None:
+    """Pour chaque combinaison (ordre CANON) : [gain unitaire €, gagnants France, gagnants Europe]."""
+    order = RANK_ORDER[stars_in_play(d)]
+    by_combo = {}
+    for r, combo in enumerate(order, start=1):
+        pay = rank_col(row, "rapport_du_rang", r)
+        fr = None
+        for key in (f"nombre_de_gagnant_au_rang{r}_euro_millions_en_france", f"nombre_de_gagnant_au_rang{r}_en_france"):
+            if key in row:
+                fr = num(row[key])
+        eu = None
+        for key in (f"nombre_de_gagnant_au_rang{r}_euro_millions_en_europe", f"nombre_de_gagnant_au_rang{r}_en_europe"):
+            if key in row:
+                eu = num(row[key])
+        if pay is None and fr is None:
+            return None
+        by_combo[combo] = [pay, fr, eu]
+    return [by_combo.get(c) for c in CANON]
+
+
 def parse_csv(text: str) -> list[dict]:
     lines = text.splitlines()
     if not lines:
@@ -76,7 +125,11 @@ def parse_csv(text: str) -> list[dict]:
             continue
         if not d or not all(1 <= n <= 50 for n in nums) or not all(1 <= s <= 12 for s in stars):
             continue
-        out.append({"d": d.isoformat(), "n": nums, "s": stars})
+        dr = {"d": d.isoformat(), "n": nums, "s": stars}
+        prizes = parse_prizes(row, d)
+        if prizes:
+            dr["g"] = prizes
+        out.append(dr)
     return out
 
 
@@ -97,8 +150,6 @@ def parse_zip(blob: bytes, diag: list) -> list[dict]:
                 except UnicodeDecodeError:
                     continue
             rows = parse_csv(text)
-            lines = text.splitlines()
-            diag.append({"fichier": name, "entete": lines[0] if lines else "", "exemple": lines[1] if len(lines) > 1 else ""})
             if not rows:
                 diag.append(f"{name} : 0 ligne lue, entête = " + " | ".join(text.splitlines()[:2])[:600])
             draws.extend(rows)
@@ -107,8 +158,9 @@ def parse_zip(blob: bytes, diag: list) -> list[dict]:
 
 def main() -> int:
     by_date: dict[str, dict] = {}
-    if OUT_JSON.exists():  # on garde l'existant si une archive est momentanément indisponible
-        for dr in json.loads(OUT_JSON.read_text())["draws"]:
+    old = json.loads(OUT_JSON.read_text()) if OUT_JSON.exists() else None
+    if old:  # on garde l'existant si une archive est momentanément indisponible
+        for dr in old["draws"]:
             by_date[dr["d"]] = dr
     before = len(by_date)
     ok = 0
@@ -129,6 +181,9 @@ def main() -> int:
         print("Aucune archive téléchargée", file=sys.stderr)
         return 1
     draws = sorted(by_date.values(), key=lambda x: x["d"])
+    if old and old["draws"] == draws:
+        print(f"Aucun changement ({len(draws)} tirages, dernier {draws[-1]['d']})")
+        return 0
     payload = {
         "source": HIST_PAGE,
         "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
