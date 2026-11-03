@@ -1,6 +1,6 @@
-import * as E from "./core.js";
-import { startSky, startOrbit } from "./cosmos.js";
-import { initOdon } from "./odon.js";
+import * as E from "./core.js?v=10";
+import { startSky, startOrbit } from "./cosmos.js?v=10";
+import { initOdon } from "./odon.js?v=10";
 
 startSky(document.getElementById("sky"));
 let ORBIT = null;
