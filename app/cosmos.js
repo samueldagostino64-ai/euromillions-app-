@@ -71,6 +71,23 @@ export function startOrbit({ hero, canvas, nav, ids, onSelect, highlight = [] })
   nav.addEventListener("focusout", () => (paused = false));
   // 50 numéros en orbite lointaine (les numéros du dernier tirage brillent)
   const dust = Array.from({ length: 50 }, (_, i) => ({ n: i + 1, a: (i / 50) * Math.PI * 2, ring: i % 2 }));
+  // Paillettes : éclats scintillants autour de l'orbite + traînée derrière les planètes
+  const PAL = ["255,255,255", "191,246,255", "255,214,130", "255,170,215", "200,185,255"];
+  const glitter = Array.from({ length: 70 }, () => ({
+    a: Math.random() * Math.PI * 2, R: 0.82 + Math.random() * 0.62, sp: 0.4 + Math.random() * 1.1,
+    ph: Math.random() * Math.PI * 2, tw: 0.6 + Math.random() * 2.2, sz: 1.6 + Math.random() ** 2 * 5.5,
+    c: PAL[(Math.random() * PAL.length) | 0], dy: (Math.random() - 0.5) * 18,
+  }));
+  let trail = [];
+  function glint(x, y, r, alpha, c) {
+    ctx.globalAlpha = alpha;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.6);
+    g.addColorStop(0, `rgba(${c},0.9)`); g.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 1.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgb(${c})`; ctx.beginPath();
+    ctx.moveTo(x, y - r * 2.4); ctx.quadraticCurveTo(x, y, x + r * 2.4, y); ctx.quadraticCurveTo(x, y, x, y + r * 2.4);
+    ctx.quadraticCurveTo(x, y, x - r * 2.4, y); ctx.quadraticCurveTo(x, y, x, y - r * 2.4); ctx.fill();
+  }
   function resize() {
     dpr = Math.min(2, devicePixelRatio || 1);
     W = hero.clientWidth; H = hero.clientHeight;
@@ -111,6 +128,26 @@ export function startOrbit({ hero, canvas, nav, ids, onSelect, highlight = [] })
     ctx.strokeStyle = g; ctx.lineWidth = 1.4; ctx.shadowColor = "rgba(139,108,255,0.9)"; ctx.shadowBlur = 10;
     ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur = 0;
+    // paillettes
+    ctx.globalCompositeOperation = "lighter";
+    const k = W < 600 ? 0.75 : 1;
+    for (const p of glitter) {
+      const a = p.a + angle * p.sp;
+      const x = cx + Math.cos(a) * rx * p.R, y = cy + Math.sin(a) * ry * p.R + p.dy;
+      const tw = reduce ? 0.5 : Math.max(0, Math.sin(t / 1000 * p.tw + p.ph));
+      const al = tw ** 3 * (Math.sin(a) > 0 ? 1 : 0.55);
+      if (al > 0.02) glint(x, y, p.sz * k * (0.55 + 0.45 * tw), al, p.c);
+    }
+    if (!reduce) {
+      for (const pl of els) if (Math.random() < 0.35) {
+        const a = pl.base + angle - 0.05 - Math.random() * 0.12;
+        trail.push({ x: cx + Math.cos(a) * rx + (Math.random() - 0.5) * 10, y: cy + Math.sin(a) * ry + (Math.random() - 0.5) * 10,
+          life: 1, sz: 0.8 + Math.random() * 1.8, c: PAL[(Math.random() * PAL.length) | 0] });
+      }
+      trail = trail.filter(q => (q.life -= dt / 1300) > 0);
+      for (const q of trail) glint(q.x, q.y + (1 - q.life) * 6, q.sz * k, q.life * 0.8, q.c);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
     // planètes : profondeur simulée (devant = plus grosses et au-dessus du noyau)
     for (const p of els) {
       const a = p.base + angle;
