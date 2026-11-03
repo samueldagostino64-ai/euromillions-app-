@@ -78,17 +78,17 @@ export function startOrbit({ hero, canvas, nav, ids, onSelect, highlight = [] })
   const dustF = Array.from({ length: 320 }, () => ({
     a: Math.random() * Math.PI * 2, R: 1 + gauss() * 0.075, dy: gauss() * 7,
     sp: 0.85 + Math.random() * 0.3, ph: Math.random() * Math.PI * 2, tw: 0.3 + Math.random() * 1.2,
-    sz: 0.35 + Math.random() ** 3 * 0.9, c: PAL[(Math.random() * PAL.length) | 0],
+    sz: 0.18 + Math.random() ** 3 * 0.4, c: PAL[(Math.random() * PAL.length) | 0],
   }));
   let glints = [], motes = [];
   function cross(x, y, L, al, c) {
-    ctx.globalAlpha = al; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+    ctx.globalAlpha = al; ctx.lineWidth = 0.35; ctx.lineCap = "round";
     for (const [dx, dy, l] of [[1, 0, L], [0, 1, L], [0.7071, 0.7071, L * 0.38], [0.7071, -0.7071, L * 0.38]]) {
       const g = ctx.createLinearGradient(x - dx * l, y - dy * l, x + dx * l, y + dy * l);
       g.addColorStop(0, `rgba(${c},0)`); g.addColorStop(0.5, `rgba(${c},1)`); g.addColorStop(1, `rgba(${c},0)`);
       ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(x - dx * l, y - dy * l); ctx.lineTo(x + dx * l, y + dy * l); ctx.stroke();
     }
-    ctx.fillStyle = `rgba(${c},1)`; ctx.beginPath(); ctx.arc(x, y, 0.9, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(${c},1)`; ctx.beginPath(); ctx.arc(x, y, 0.45, 0, Math.PI * 2); ctx.fill();
   }
   function resize() {
     dpr = Math.min(2, devicePixelRatio || 1);
@@ -137,29 +137,29 @@ export function startOrbit({ hero, canvas, nav, ids, onSelect, highlight = [] })
       const a = p.a + angle * p.sp;
       const x = cx + Math.cos(a) * rx * p.R, y = cy + Math.sin(a) * ry * p.R + p.dy;
       const tw = reduce ? 0.6 : 0.5 + 0.5 * Math.sin(sec * p.tw + p.ph);
-      ctx.globalAlpha = (0.12 + 0.75 * tw * tw) * (Math.sin(a) > 0 ? 1 : 0.5);
+      ctx.globalAlpha = (0.05 + 0.5 * tw * tw) * (Math.sin(a) > 0 ? 1 : 0.45);
       ctx.fillStyle = `rgb(${p.c})`;
       ctx.beginPath(); ctx.arc(x, y, p.sz, 0, Math.PI * 2); ctx.fill();
       p.x = x; p.y = y;
     }
     if (!reduce) {
       // reflets : quelques grains s'allument brièvement en croix fine
-      if (glints.length < (W < 600 ? 4 : 7) && Math.random() < 0.05) {
+      if (glints.length < (W < 600 ? 2 : 4) && Math.random() < 0.025) {
         const p = dustF[(Math.random() * dustF.length) | 0];
-        glints.push({ p, life: 0, dur: 1.4 + Math.random() * 1.4, L: 4 + Math.random() * 7 });
+        glints.push({ p, life: 0, dur: 1.4 + Math.random() * 1.4, L: 2.5 + Math.random() * 3.5 });
       }
       glints = glints.filter(g => (g.life += dt / 1000) < g.dur);
-      for (const g of glints) cross(g.p.x, g.p.y, g.L, Math.sin(Math.PI * g.life / g.dur) ** 2 * 0.9, g.p.c);
+      for (const g of glints) cross(g.p.x, g.p.y, g.L, Math.sin(Math.PI * g.life / g.dur) ** 2 * 0.65, g.p.c);
       // traînées : arc lumineux qui s'éteint derrière chaque planète + grains qui s'en détachent
       for (const pl of els) {
         const a0 = pl.base + angle, depth = (Math.sin(a0) + 1) / 2, N = 22, span = 0.42;
         ctx.strokeStyle = pl.c1;
         for (let i = 0; i < N; i++) {
           const u = i / N, a1 = a0 - 0.07 - u * span, a2 = a0 - 0.07 - (u + 1 / N) * span;
-          ctx.globalAlpha = (1 - u) ** 2 * (0.35 + 0.4 * depth); ctx.lineWidth = 1.6 * (1 - u) + 0.2;
+          ctx.globalAlpha = (1 - u) ** 2 * (0.12 + 0.18 * depth); ctx.lineWidth = 0.7 * (1 - u) + 0.15;
           ctx.beginPath(); ctx.moveTo(cx + Math.cos(a1) * rx, cy + Math.sin(a1) * ry); ctx.lineTo(cx + Math.cos(a2) * rx, cy + Math.sin(a2) * ry); ctx.stroke();
         }
-        if (Math.random() < 0.12) {
+        if (Math.random() < 0.05) {
           const a = a0 - 0.08 - Math.random() * 0.2;
           motes.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, vx: (Math.random() - 0.5) * 0.008, vy: 0.004 + Math.random() * 0.008, life: 1, c: PAL[(Math.random() * PAL.length) | 0] });
         }
@@ -167,8 +167,8 @@ export function startOrbit({ hero, canvas, nav, ids, onSelect, highlight = [] })
       motes = motes.filter(m => (m.life -= dt / 2600) > 0);
       for (const m of motes) {
         m.x += m.vx * dt; m.y += m.vy * dt;
-        ctx.globalAlpha = m.life * 0.9; ctx.fillStyle = `rgb(${m.c})`;
-        ctx.beginPath(); ctx.arc(m.x, m.y, 0.3 + 0.6 * m.life, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = m.life * 0.5; ctx.fillStyle = `rgb(${m.c})`;
+        ctx.beginPath(); ctx.arc(m.x, m.y, 0.15 + 0.3 * m.life, 0, Math.PI * 2); ctx.fill();
       }
     }
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
